@@ -51,6 +51,32 @@ async function startServer() {
 
       res.send(tasks);
     });
+    // Update task
+app.put("/update/:id", async (req, res) => {
+  const { id } = req.params;
+  const { text } = req.body;
+
+  const updatedTask = await Task.findByIdAndUpdate(
+    id,
+    { text },
+    { new: true }
+  );
+
+  res.send(updatedTask);
+});
+
+// Delete task
+app.delete("/delete/:id", async (req, res) => {
+  const { id } = req.params;
+
+  await Task.findByIdAndDelete(id);
+
+  res.send({
+    message: "Task deleted successfully"
+  });
+});
+    // Update task
+
 
     app.listen(5000, () => console.log("Server running on port 5000"));
   } catch (err) {
@@ -58,5 +84,7 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+
 
 startServer();

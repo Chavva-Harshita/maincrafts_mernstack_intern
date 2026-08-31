@@ -109,3 +109,12 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Task 3: prevent root container from clipping task list items */
+#root {
+  overflow: visible;
+}
+
+* {
+  box-sizing: border-box;
+}
