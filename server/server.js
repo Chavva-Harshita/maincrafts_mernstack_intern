@@ -2,72 +2,61 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config();
-const User = require("./models/User");
+const { MongoMemoryServer } = require("mongodb-memory-server");
 
 const app = express();
-
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Test route
-app.get("/", (req, res) => {
-  res.json({
-    message: "MERN Task 1 Backend is running!"
-  });
-});
+let Task;
 
-// Connect to MongoDB
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("MongoDB connected successfully");
-
-    const PORT = process.env.PORT || 5000;
-
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  })
-  .catch((error) => {
-    console.error("MongoDB connection failed:", error.message);
-  });
-
-  app.use(express.json());
-
-app.get("/", (req, res) => {
-  res.send("API is running");
-});
-
-app.get("/api/users", async (req, res) => {
+async function startServer() {
   try {
-    const users = await User.find();
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch users",
-      error: error.message,
+    // Try to connect to MongoDB Atlas first
+    let connected = false;
+    try {
+      await mongoose.connect(process.env.MONGO_URI, {
+        serverSelectionTimeoutMS: 5000,
+      });
+      console.log("MongoDB Atlas Connected");
+      connected = true;
+    } catch (atlasErr) {
+      console.log("Atlas connection failed, using in-memory MongoDB...");
+    }
+
+    // If Atlas failed, use MongoDB Memory Server
+    if (!connected) {
+      const mongod = await MongoMemoryServer.create();
+      const uri = mongod.getUri();
+      await mongoose.connect(uri);
+      console.log("MongoDB Memory Server Connected:", uri);
+    }
+
+    Task = mongoose.model(
+      "Task",
+      new mongoose.Schema({ text: String })
+    );
+
+    // Add new task
+    app.post("/add", async (req, res) => {
+      const newTask = new Task(req.body);
+      await newTask.save();
+
+      res.send(newTask);
     });
+
+    // Get all tasks
+    app.get("/tasks", async (req, res) => {
+      const tasks = await Task.find();
+
+      res.send(tasks);
+    });
+
+    app.listen(5000, () => console.log("Server running on port 5000"));
+  } catch (err) {
+    console.error("Server startup error:", err.message);
+    process.exit(1);
   }
-});
+}
 
-app.post("/api/users", async (req, res) => {
-  try {
-    const { name, email, age } = req.body;
-
-    const user = new User({
-      name,
-      email,
-      age,
-    });
-
-    const savedUser = await user.save();
-
-    res.status(201).json(savedUser);
-  } catch (error) {
-    res.status(400).json({
-      message: "Failed to create user",
-      error: error.message,
-    });
-  }
-});
+startServer();
